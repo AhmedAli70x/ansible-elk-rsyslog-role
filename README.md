@@ -150,36 +150,421 @@ all:
           ansible_host: 192.168.181.134
 ```
 
-### Advanced Inventory with Variables
+### Server IP Configuration
+
+Update the server IP addresses in the role's variables file:
 
 ```yaml
-# inventory/hosts.yml
+# elk_role/vars/main.yml
+---
+# Server IP Addresses
+elk_server: add_server_ip_address
+rsyslog_server: add_server_ip_address
+client_server: add_server_ip_address
+```
+
+Replace `add_server_ip_address` with your actual server IP addresses before deployment.
+
+## Usage
+
+### Basic Deployment
+
+```yaml
+# site.yml
+---
+- name: Deploy ELK + Rsyslog Infrastructure
+  hosts: all
+  become: yes
+  roles:
+    - elk_role
+```
+
+Run the playbook:
+
+```bash
+ansible-playbook -i inventory site.yml
+```
+
+### Production Deployment with Custom Variables
+
+```yaml
+# production.yml
+---
+- name: Production ELK + Rsyslog Deployment
+  hosts: all
+  become: yes
+  roles:
+    - role: elk_role
+      vars:
+        elasticsearch_heap_size: "2g"
+        logstash_heap_size: "1g"
+        elasticsearch_cluster_name: "production-logs"
+        environment: "production"
+        elk_security_enabled: true
+```
+
+### Selective Deployment
+
+Deploy only specific components:
+
+```bash
+# Deploy only ELK stack
+ansible-playbook -i inventory site.yml --tags "elk"
+
+# Deploy only rsyslog server
+ansible-playbook -i inventory site.yml --tags "rsyslog"
+
+# Deploy only client configuration
+ansible-playbook -i inventory site.yml --tags "client"
+```
+
+## Architecture
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Client        │    │   Rsyslog       │    │   ELK Stack     │
+│   Servers       │────┤   Server        │────┤   Server        │
+│                 │    │                 │    │                 │
+│ - Log Generator │    │ - Log Collector │    │ - Elasticsearch │
+│ - Rsyslog Client│    │ - Log Parser    │    │ - Logstash      │
+│ - Log Forwarding│    │ - Log Forwarding│    │ - Kibana        │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+        │                        │                        │
+        │ Syslog (TCP/UDP 514)   │ Parsed Logs (TCP 5000)│
+        └────────────────────────┼────────────────────────┘
+                                 │
+                        ┌─────────────────┐
+                        │   Log Storage   │
+                        │   & Analysis    │
+                        │                 │
+                        │ - Search Index  │
+                        │ - Visualizations│
+                        │ - Dashboards    │
+                        └─────────────────┘
+```
+
+### Data Flow
+
+1. **Log Generation**: Applications and system services generate logs on client servers
+2. **Log Collection**: Client rsyslog forwards logs to centralized rsyslog server
+3. **Log Processing**: Rsyslog server processes and forwards logs to Logstash
+4. **Log Indexing**: Logstash parses and indexes logs into Elasticsearch
+5. **Log Visualization**: Kibana provides web interface for searching and visualizing logs
+
+## Testing
+
+### Automated Testing
+
+The role includes built-in testing and verification:
+
+```bash
+# Run connectivity tests
+ansible-playbook -i inventory site.yml --tags "health-check"
+
+# Generate test logs
+ansible-playbook -i inventory site.yml --tags "test-logs"
+```
+
+### Manual Testing
+
+#### Test Log Generation
+
+On client servers:
+```bash
+# Generate test logs
+logger "Test message from $(hostname) - $(date)"
+logger -p local0.error "ERROR: Test error message"
+logger -p auth.info "AUTH: Test authentication log"
+```
+
+#### Verify Log Reception
+
+On rsyslog server:
+```bash
+# Check client logs
+sudo tail -f /var/log/client/client1.log
+sudo tail -f /var/log/client/192.168.181.134.log
+```
+
+On ELK server:
+```bash
+# Check Elasticsearch indices
+curl "localhost:9200/_cat/indices?v"
+
+# Search for recent logs
+curl "localhost:9200/_search?q=*&sort=@timestamp:desc&pretty"
+```
+
+#### Service Health Checks
+
+```bash
+# Check all services
+sudo systemctl status elasticsearch kibana logstash rsyslog
+
+# Check listening ports
+sudo netstat -tlnp | grep -E "(9200|5601|5044|5000|514)"
+
+# Test web interfaces
+curl http://localhost:9200/
+curl -I http://localhost:5601/
+```
+
+### Performance Testing
+
+#### Generate Load
+
+```bash
+# Generate continuous test logs
+for i in {1..1000}; do
+    logger "Load test message $i from $(hostname) - $(date)"
+    sleep 0.1
+done
+```
+
+#### Monitor Performance
+
+```bash
+# Monitor Elasticsearch performance
+curl "localhost:9200/_cluster/stats?pretty"
+
+# Check JVM heap usage
+curl "localhost:9200/_nodes/stats/jvm?pretty"
+
+# Monitor system resources
+htop
+iotop
+```
+
+## Troubleshooting
+
+### Common Issues
+
+#### Elasticsearch Won't Start
+
+```bash
+# Check logs
+sudo journalctl -u elasticsearch -f
+
+# Common fixes:
+sudo chown -R elasticsearch:elasticsearch /var/lib/elasticsearch
+sudo sysctl vm.max_map_count=262144  # Add to /etc/sysctl.conf for persistence
+```
+
+#### Rsyslog Not Receiving Logs
+
+```bash
+# Check if rsyslog is listening
+sudo netstat -tlnp | grep 514
+
+# Test configuration
+sudo rsyslogd -N1
+
+# Check firewall
+sudo firewall-cmd --list-ports | grep 514
+```
+
+#### Kibana Not Accessible
+
+```bash
+# Check Kibana logs
+sudo journalctl -u kibana -f
+
+# Ensure Elasticsearch is running
+curl localhost:9200/_cluster/health
+
+# Wait for Kibana to fully start (can take 2-3 minutes)
+```
+
+#### Connection Timeouts
+
+```bash
+# Test network connectivity
+telnet rsyslog-server 514
+telnet elk-server 5000
+
+# Check iptables/firewall
+sudo iptables -L -n
+sudo firewall-cmd --list-all
+```
+
+### Debug Commands
+
+```bash
+# Service status overview
+sudo systemctl status elasticsearch kibana logstash rsyslog
+
+# Port listening check
+sudo ss -tlnp | grep -E "(9200|5601|5044|5000|514)"
+
+# Log monitoring
+sudo journalctl -f -u elasticsearch -u kibana -u logstash -u rsyslog
+
+# Configuration validation
+sudo /usr/share/elasticsearch/bin/elasticsearch-config --check
+sudo rsyslogd -N1
+```
+
+### Log Locations
+
+- **Elasticsearch**: `/var/log/elasticsearch/`
+- **Kibana**: `/var/log/kibana/`
+- **Logstash**: `/var/log/logstash/`
+- **Rsyslog**: `/var/log/messages`, `/var/log/client/`
+- **System**: `journalctl -u service-name`
+
+## Examples
+
+### Environment-Specific Deployments
+
+#### Development Environment
+
+```yaml
+# vars/dev.yml
+---
+elk_server: "192.168.1.10"
+rsyslog_server: "192.168.1.11"
+client_server: "192.168.1.12"
+elasticsearch_heap_size: "256m"
+logstash_heap_size: "256m"
+environment: "development"
+```
+
+#### Production Environment
+
+```yaml
+# vars/prod.yml
+---
+elk_server: "10.0.1.10"
+rsyslog_server: "10.0.1.11"
+client_server: "10.0.1.12"
+elasticsearch_heap_size: "4g"
+logstash_heap_size: "2g"
+elasticsearch_cluster_name: "production-logs"
+environment: "production"
+elk_security_enabled: true
+```
+
+#### Multi-Client Setup
+
+```yaml
+# inventory for multiple clients
 all:
-  vars:
-    ansible_user: ansible
-    ansible_ssh_private_key_file: ~/.ssh/ahmed.priv
   children:
     elk:
       hosts:
         elk-server:
-          ansible_host: 192.168.181.132
-          elasticsearch_heap_size: "512m"
-          logstash_heap_size: "512m"
+          ansible_host: 192.168.1.10
     rsyslog:
       hosts:
         rsyslog-server:
-          ansible_host: 192.168.181.133
-          rsyslog_retention_days: 30
+          ansible_host: 192.168.1.11
     client:
       hosts:
-        client-server-1:
-          ansible_host: 192.168.181.134
-        client-server-2:
-          ansible_host: 192.168.181.135
-      vars:
-        log_level: info
+        web-server-1:
+          ansible_host: 192.168.1.20
+        web-server-2:
+          ansible_host: 192.168.1.21
+        db-server-1:
+          ansible_host: 192.168.1.30
+        app-server-1:
+          ansible_host: 192.168.1.40
 ```
 
-## Usage
+### Custom Configuration Examples
 
-### Basic
+#### High-Performance Setup
+
+```yaml
+- name: High-performance ELK deployment
+  hosts: all
+  become: yes
+  roles:
+    - role: elk_role
+      vars:
+        elasticsearch_heap_size: "8g"
+        logstash_heap_size: "4g"
+        elasticsearch_cluster_name: "high-perf-cluster"
+        max_connections: 5000
+        buffer_size: "128k"
+```
+
+#### Secure Setup
+
+```yaml
+- name: Secure ELK deployment
+  hosts: all
+  become: yes
+  roles:
+    - role: elk_role
+      vars:
+        elk_security_enabled: true
+        elk_ssl_enabled: true
+        elasticsearch_cluster_name: "secure-cluster"
+```
+
+### Accessing Services
+
+After successful deployment:
+
+- **Kibana Dashboard**: http://192.168.181.132:5601
+- **Elasticsearch API**: http://192.168.181.132:9200
+- **Rsyslog Server**: 192.168.181.133:514
+
+## Dependencies
+
+None. This role manages all required dependencies internally.
+
+## Compatibility
+
+- **Rocky Linux**: 8, 9
+- **CentOS**: 8, 9
+- **RHEL**: 8, 9
+- **Ansible**: 2.9+
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature-name`)
+3. Make your changes
+4. Test thoroughly
+5. Commit your changes (`git commit -am 'Add new feature'`)
+6. Push to the branch (`git push origin feature-name`)
+7. Create a Pull Request
+
+### Development Guidelines
+
+- Follow existing code style and structure
+- Add appropriate comments and documentation
+- Include test cases for new features
+- Update README.md for significant changes
+- Use meaningful commit messages
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+## Author
+
+**Your Name**
+- GitHub: [@your_username](https://github.com/your_username)
+- Email: your.email@example.com
+
+## Support
+
+For support and questions:
+- Create an issue on [GitHub](https://github.com/your_username/elk-rsyslog-role/issues)
+- Check the [troubleshooting section](#troubleshooting)
+- Review [examples](#examples) for common use cases
+
+## Changelog
+
+### v1.0.0
+- Initial release
+- ELK Stack 8.x support
+- Rocky Linux 8/9 compatibility
+- Rsyslog integration
+- Comprehensive documentation and testing
+
+---
+
+*Last updated: $(date '+%Y-%m-%d')*
