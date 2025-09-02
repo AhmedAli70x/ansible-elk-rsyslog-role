@@ -55,13 +55,13 @@ This role automates the deployment of a complete logging infrastructure includin
 ### From Ansible Galaxy
 
 ```bash
-ansible-galaxy install your_namespace.elk_rsyslog_role
+ansible-galaxy install ahmedali70x.elk_rsyslog_role
 ```
 
 ### From GitHub
 
 ```bash
-git clone https://github.com/your_username/elk-rsyslog-role.git roles/elk_role
+git clone git clone [https://github.com/ahmedali70x/elk-rsyslog-role.git roles/elk_role](https://github.com/AhmedAli70x/ansible-elk-rsyslog-role.git)
 ```
 
 ## Role Variables
@@ -531,39 +531,6 @@ None. This role manages all required dependencies internally.
 6. Push to the branch (`git push origin feature-name`)
 7. Create a Pull Request
 
-### Development Guidelines
-
-- Follow existing code style and structure
-- Add appropriate comments and documentation
-- Include test cases for new features
-- Update README.md for significant changes
-- Use meaningful commit messages
-
-## License
-
-MIT License - see [LICENSE](LICENSE) file for details.
-
-## Author
-
-**Your Name**
-- GitHub: [@your_username](https://github.com/your_username)
-- Email: your.email@example.com
-
-## Support
-
-For support and questions:
-- Create an issue on [GitHub](https://github.com/your_username/elk-rsyslog-role/issues)
-- Check the [troubleshooting section](#troubleshooting)
-- Review [examples](#examples) for common use cases
-
-## Changelog
-
-### v1.0.0
-- Initial release
-- ELK Stack 8.x support
-- Rocky Linux 8/9 compatibility
-- Rsyslog integration
-- Comprehensive documentation and testing
 
 ---
 
