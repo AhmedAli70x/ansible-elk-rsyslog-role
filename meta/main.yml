@@ -33,11 +33,6 @@ galaxy_info:
     - centos
     - rhel
     
-  # Categories
-  categories:
-    - monitoring
-    - logging
-    - system
 
 # Role dependencies (if any)
 dependencies: []
