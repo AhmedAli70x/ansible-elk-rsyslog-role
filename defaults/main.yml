@@ -1,0 +1,14 @@
+---
+# Server types
+server_types:
+  - elk
+  - rsyslog
+  - client
+
+# ELK configuration
+elk_version: "8.10.4"
+elasticsearch_port: 9200
+kibana_port: 5601
+
+# Rsyslog configuration
+rsyslog_port: 514

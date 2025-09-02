@@ -1,0 +1,24 @@
+server.port: {{ kibana_port }}
+server.host: "{{ kibana_host }}"
+server.name: "kibana-server"
+elasticsearch.hosts: ["http://localhost:{{ elasticsearch_port }}"]
+
+# Logging configuration
+logging:
+  appenders:
+    file:
+      type: file
+      fileName: /var/log/kibana/kibana.log
+      layout:
+        type: json
+  root:
+    appenders:
+      - default
+      - file
+
+# Public URL for external access
+server.publicBaseUrl: "http://{{ ansible_default_ipv4.address }}:{{ kibana_port }}"
+
+# Disable security for development
+elasticsearch.username: ""
+elasticsearch.password: ""

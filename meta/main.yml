@@ -1,0 +1,43 @@
+---
+galaxy_info:
+  author: Ahmed Ali
+  description: ELK Stack and Rsyslog configuration role for Rocky Linux
+  
+  # License 
+  license: ELK_AKA
+  
+  # Minimum Ansible version
+  min_ansible_version: 2.9
+  
+  # Platforms supported
+  platforms:
+    - name: EL  # Enterprise Linux (Rocky, CentOS, RHEL)
+      versions:
+        - 8
+        - 9
+    - name: Rocky
+      versions:
+        - 8
+        - 9
+  
+  # Galaxy tags (help users find your role)
+  galaxy_tags:
+    - elk
+    - elasticsearch
+    - kibana
+    - logstash
+    - rsyslog
+    - logging
+    - monitoring
+    - rocky
+    - centos
+    - rhel
+    
+  # Categories
+  categories:
+    - monitoring
+    - logging
+    - system
+
+# Role dependencies (if any)
+dependencies: []

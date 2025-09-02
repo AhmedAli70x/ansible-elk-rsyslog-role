@@ -1,0 +1,52 @@
+input {
+  # Syslog input
+  syslog {
+    port => {{ logstash_port }}
+    type => "syslog"
+  }
+  
+  # Beats input (for filebeat)
+  beats {
+    port => {{ logstash_beats_port }}
+    type => "beats"
+  }
+  
+  # TCP input for remote syslog
+  tcp {
+    port => 5001
+    type => "syslog"
+  }
+}
+
+filter {
+  if [type] == "syslog" {
+    grok {
+      match => { 
+        "message" => "%{SYSLOGTIMESTAMP:syslog_timestamp} %{IPORHOST:syslog_server} %{DATA:syslog_program}(?:\[%{POSINT:syslog_pid}\])?: %{GREEDYDATA:syslog_message}" 
+      }
+      add_field => [ "received_at", "%{@timestamp}" ]
+      add_field => [ "received_from", "%{host}" ]
+    }
+    
+    date {
+      match => [ "syslog_timestamp", "MMM  d HH:mm:ss", "MMM dd HH:mm:ss" ]
+    }
+  }
+  
+  # Add hostname field
+  mutate {
+    add_field => { "server_name" => "%{host}" }
+  }
+}
+
+output {
+  elasticsearch {
+    hosts => ["localhost:{{ elasticsearch_port }}"]
+    index => "logstash-%{type}-%{+YYYY.MM.dd}"
+  }
+  
+  # For debugging - remove in production
+  stdout {
+    codec => rubydebug
+  }
+}

@@ -1,0 +1,107 @@
+# Fix 1: Update rsyslog.yml to use correct user/group for Rocky Linux
+---
+- name: Rsyslog Server Configuration
+  become: yes
+  block:
+    - name: Install rsyslog package
+      package:
+        name: rsyslog
+        state: present
+
+    - name: Create log directory with correct ownership for Rocky Linux
+      file:
+        path: /var/log/client
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Configure rsyslog to accept remote logs
+      copy:
+        dest: /etc/rsyslog.d/remote.conf
+        content: |
+          # Enable TCP and UDP reception
+          module(load="imudp")
+          input(type="imudp" port="{{ rsyslog_port }}")
+          module(load="imtcp")
+          input(type="imtcp" port="{{ rsyslog_port }}")
+        backup: yes
+      register: rsyslog_remote_config
+
+    - name: Configure rsyslog to store client logs separately
+      copy:
+        dest: /etc/rsyslog.d/client.conf
+        content: |
+          # Store all logs from the specific client in a single file
+          if $fromhost-ip == '{{ client_server }}' then /var/log/client/client1.log
+          & stop
+          
+          # Store logs from any client in separate files by hostname
+          $template RemoteHost,"/var/log/client/%fromhost-ip%.log"
+          if $fromhost-ip != '127.0.0.1' then ?RemoteHost
+        backup: yes
+      register: rsyslog_client_config
+
+    - name: Forward logs to ELK stack
+      copy:
+        dest: /etc/rsyslog.d/elk-forward.conf
+        content: |
+          # Forward all received logs to ELK Logstash
+          *.* @@{{ elk_server }}:{{ logstash_port }}
+        backup: yes
+      register: rsyslog_elk_config
+
+    - name: Test rsyslog configuration syntax
+      command: rsyslogd -N1
+      register: rsyslog_syntax_check
+      failed_when: rsyslog_syntax_check.rc != 0
+      changed_when: false
+
+    - name: Restart rsyslog service when configuration changed
+      service:
+        name: rsyslog
+        state: restarted
+      when: rsyslog_remote_config.changed or rsyslog_client_config.changed or rsyslog_elk_config.changed
+
+    - name: Ensure rsyslog service is enabled and started
+      service:
+        name: rsyslog
+        state: started
+        enabled: yes
+
+    - name: Start firewalld if not running
+      systemd:
+        name: firewalld
+        state: started
+        enabled: yes
+      ignore_errors: yes
+
+    - name: Ensure firewall allows TCP and UDP 514
+      firewalld:
+        port: "{{ rsyslog_port }}/{{ item }}"
+        permanent: yes
+        state: enabled
+        immediate: yes
+      loop:
+        - tcp
+        - udp
+      ignore_errors: yes
+
+    - name: Wait for rsyslog to start properly
+      pause:
+        seconds: 5
+
+    - name: Verify rsyslog is listening on port 514
+      wait_for:
+        port: "{{ rsyslog_port }}"
+        host: 0.0.0.0
+        timeout: 10
+      register: rsyslog_listening
+
+    - name: Display rsyslog listening status
+      debug:
+        msg: "Rsyslog is {{ 'listening' if rsyslog_listening is succeeded else 'NOT listening' }} on port {{ rsyslog_port }}"
+
+  tags:
+    - rsyslog
+    - logging

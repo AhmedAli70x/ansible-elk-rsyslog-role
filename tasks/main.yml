@@ -1,0 +1,8 @@
+---
+- name: Include server-specific tasks
+  include_tasks: "{{ item }}.yml"
+  when: inventory_hostname in (groups[item] | default([]))
+  loop:
+    - elk
+    - rsyslog
+    - client

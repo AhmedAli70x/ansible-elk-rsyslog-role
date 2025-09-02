@@ -1,0 +1,137 @@
+---
+# Server IP Addresses
+elk_server: 192.168.181.132
+rsyslog_server: 192.168.181.133
+client_server: 192.168.181.134
+
+# ELK Stack Version Configuration
+elasticsearch_version: "8.11.0"
+kibana_version: "8.11.0"  
+logstash_version: "8.11.0"
+java_version: "17"
+
+# Memory Configuration
+elasticsearch_heap_size: "256m"
+logstash_heap_size: "256m"
+
+# Elasticsearch Configuration
+elasticsearch_cluster_name: "my-elk-cluster"
+elasticsearch_node_name: "{{ ansible_hostname }}"
+elasticsearch_host: "0.0.0.0"
+elasticsearch_port: 9200
+elasticsearch_data_path: "/var/lib/elasticsearch"
+elasticsearch_logs_path: "/var/log/elasticsearch"
+
+# Kibana Configuration
+kibana_host: "0.0.0.0"
+kibana_port: 5601
+kibana_server_name: "kibana-server"
+kibana_logs_path: "/var/log/kibana"
+
+# Logstash Configuration
+logstash_port: 5000
+logstash_beats_port: 5044
+logstash_tcp_port: 5001
+logstash_config_path: "/etc/logstash/conf.d"
+
+# Rsyslog Configuration (MISSING - ADDED)
+rsyslog_port: 514
+rsyslog_config_path: "/etc/rsyslog.d"
+rsyslog_log_path: "/var/log"
+rsyslog_client_log_path: "/var/log/client"
+
+# Client Configuration (MISSING - ADDED)
+client_service_name: "myapp"
+client_log_level: "info"
+client_app_log_path: "/var/log/applications"
+
+# Security Configuration (disabled for development)
+elk_security_enabled: false
+elk_ssl_enabled: false
+
+# Java Configuration
+java_home_path: "/usr/lib/jvm/java-17-openjdk"
+
+# Package lists
+elk_required_packages:
+  - curl
+  - wget
+  - gnupg2
+
+java_packages:
+  - java-17-openjdk
+  - java-17-openjdk-devel
+
+# Rsyslog packages (MISSING - ADDED)
+rsyslog_packages:
+  - rsyslog
+  - rsyslog-relp
+
+# Client packages (MISSING - ADDED)  
+client_packages:
+  - rsyslog
+  - logrotate
+
+# Firewall Ports
+elk_firewall_ports:
+  - "9200"  # Elasticsearch
+  - "5601"  # Kibana
+  - "5044"  # Logstash Beats input
+  - "5000"  # Logstash syslog input
+  - "5001"  # Logstash TCP input
+
+# Rsyslog firewall ports (MISSING - ADDED)
+rsyslog_firewall_ports:
+  - "514"   # Rsyslog TCP
+  
+rsyslog_firewall_protocols:
+  - tcp
+  - udp
+
+# Service Configuration
+elk_services:
+  - elasticsearch
+  - kibana
+  - logstash
+
+# Rsyslog services (MISSING - ADDED)
+rsyslog_services:
+  - rsyslog
+
+# Timeout and retry settings (MISSING - ADDED)
+connection_timeout: 10
+service_restart_retries: 3
+health_check_retries: 12
+health_check_delay: 10
+
+# Log retention settings (MISSING - ADDED)
+log_rotation_days: 30
+log_max_size: "100M"
+compressed_logs: true
+
+# Directory permissions (Fixed for Rocky Linux)
+log_directory_owner: "root"
+log_directory_group: "root"
+log_directory_mode: "0755"
+log_file_mode: "0644"
+
+# Template settings for dynamic configuration (MISSING - ADDED)
+rsyslog_template_name: "RemoteHost"
+rsyslog_template_path: "/var/log/client/%fromhost-ip%.log"
+
+# Network settings (MISSING - ADDED)
+network_interface: "0.0.0.0"
+max_connections: 1000
+buffer_size: "64k"
+
+# Environment settings (MISSING - ADDED)
+environment: "development"
+timezone: "UTC"
+
+# Monitoring settings (MISSING - ADDED)
+enable_monitoring: true
+monitoring_interval: 300  # 5 minutes
+
+# Backup settings (MISSING - ADDED)
+backup_configs: true
+config_backup_path: "/etc/backups"
